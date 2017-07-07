@@ -1,5 +1,7 @@
 package com.example.prateekkesarwani.listviewinfinitedemo;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -15,12 +17,13 @@ import java.util.ArrayList;
 
 public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder> {
 
-    private ArrayList<Integer> dataList;
+    // private ArrayList<Integer> dataList;
 
-    public PhotosAdapter(ArrayList<Integer> dataList) {
-        this.dataList = dataList;
+    private ArrayList<String> camImgUriList;
+
+    public PhotosAdapter(ArrayList<String> camImgUriList) {
+        this.camImgUriList = camImgUriList;
     }
-
 
     @Override
     public PhotosAdapter.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
@@ -30,12 +33,17 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
-        holder.txtItem.setText("Value: " + dataList.get(position));
+        holder.txtItem.setText("Value: " + position);
+
+        Bitmap bitmap = BitmapFactory.decodeFile(camImgUriList.get(position));
+
+        // holder.imgItem.setBackground(ContextCompat.getDrawable(holder.imgItem.getContext(), R.drawable.img_placeholder));
+        holder.imgItem.setImageBitmap(bitmap);
     }
 
     @Override
     public int getItemCount() {
-        return dataList.size();
+        return camImgUriList.size();
     }
 
     class ViewHolder extends RecyclerView.ViewHolder {

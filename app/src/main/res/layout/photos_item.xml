@@ -6,8 +6,7 @@
     <ImageView
         android:id="@+id/item_img"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/img_placeholder" />
+        android:layout_height="match_parent" />
 
     <TextView
         android:id="@+id/item_text"

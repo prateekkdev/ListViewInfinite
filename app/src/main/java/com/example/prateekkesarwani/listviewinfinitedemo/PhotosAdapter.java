@@ -11,6 +11,13 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.functions.Consumer;
+import io.reactivex.schedulers.Schedulers;
+
 /**
  * Created by prateek.kesarwani on 07/07/17.
  */
@@ -35,10 +42,30 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
     public void onBindViewHolder(ViewHolder holder, int position) {
         holder.txtItem.setText("Value: " + position);
 
-        Bitmap bitmap = BitmapFactory.decodeFile(camImgUriList.get(position));
+        Observable.create(new ObservableOnSubscribe<Bitmap>() {
+                              @Override
+                              public void subscribe(ObservableEmitter<Bitmap> e) throws Exception {
+                                  Bitmap bitmap = BitmapFactory.decodeFile(camImgUriList.get(position));
+
+                                  // Null aren't allowed in RxJava 2.0. So need to implement onError, if null is released.
+                                  if(bitmap != null) {
+                                      e.onNext(bitmap);
+                                  }
+
+                              }
+                          }
+        ).subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Consumer<Bitmap>() {
+                    @Override
+                    public void accept(Bitmap bitmap) throws Exception {
+                        holder.imgItem.setImageBitmap(bitmap);
+                    }
+                });
+
 
         // holder.imgItem.setBackground(ContextCompat.getDrawable(holder.imgItem.getContext(), R.drawable.img_placeholder));
-        holder.imgItem.setImageBitmap(bitmap);
+        ;
     }
 
     @Override

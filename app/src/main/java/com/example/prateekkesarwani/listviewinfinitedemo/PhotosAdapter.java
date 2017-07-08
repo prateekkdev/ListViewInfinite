@@ -3,6 +3,8 @@ package com.example.prateekkesarwani.listviewinfinitedemo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
+import android.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,6 +30,32 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
 
     private ArrayList<String> camImgUriList;
 
+    private LruCache<String, Bitmap> photosCache;
+
+    // Get max available VM memory, exceeding this amount will throw an
+    // OutOfMemory exception. Stored in kilobytes as LruCache takes an
+    // int in its constructor.
+    final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
+
+    // Use 1/8th of the available memory for this memory cache.
+    final int cacheSize = maxMemory / 8;
+
+    void initCache() {
+
+        if (photosCache != null) {
+            return;
+        }
+
+        photosCache = new LruCache<String, Bitmap>(cacheSize) {
+            @Override
+            protected int sizeOf(String key, Bitmap bitmap) {
+                // The cache size will be measured in kilobytes rather than
+                // number of items.
+                return bitmap.getByteCount() / 1024;
+            }
+        };
+    }
+
     public PhotosAdapter(ArrayList<String> camImgUriList) {
         this.camImgUriList = camImgUriList;
     }
@@ -45,11 +73,29 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
         Observable.create(new ObservableOnSubscribe<Bitmap>() {
                               @Override
                               public void subscribe(ObservableEmitter<Bitmap> e) throws Exception {
-                                  Bitmap bitmap = BitmapFactory.decodeFile(camImgUriList.get(position));
 
+                                  String url = camImgUriList.get(position);
+
+                                  initCache();
+
+                                  Bitmap bitmap = photosCache.get(url);
+
+                                  if (bitmap == null) {
+
+                                      bitmap = BitmapFactory.decodeFile(camImgUriList.get(position));
+
+                                      if (bitmap != null) {
+                                          photosCache.put(url, bitmap);
+                                      }
+                                  }
+
+                                  // bitmap.get
                                   // Null aren't allowed in RxJava 2.0. So need to implement onError, if null is released.
-                                  if(bitmap != null) {
+                                  if (bitmap != null) {
                                       e.onNext(bitmap);
+
+                                      Log.e("Prateek", "Max-Memory: " + maxMemory);
+                                      // Log.e("Prateek", "Free-Memory: " + availableMemory);
                                   }
 
                               }

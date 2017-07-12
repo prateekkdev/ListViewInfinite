@@ -26,8 +26,6 @@ import io.reactivex.schedulers.Schedulers;
 
 public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder> {
 
-    // private ArrayList<Integer> dataList;
-
     private ArrayList<String> camImgUriList;
 
     private LruCache<String, Bitmap> photosCache;
@@ -38,7 +36,7 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
     final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
 
     // Use 1/8th of the available memory for this memory cache.
-    final int cacheSize = maxMemory / 8;
+    final int cacheSize = maxMemory / 4;
 
     void initCache() {
 
@@ -51,9 +49,24 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
             protected int sizeOf(String key, Bitmap bitmap) {
                 // The cache size will be measured in kilobytes rather than
                 // number of items.
+
+                Log.e("Prateek", "SizeKB: " + bitmap.getByteCount() / 1024 + ", Url: " + key);
+
                 return bitmap.getByteCount() / 1024;
             }
         };
+    }
+
+    @Override
+    public void onViewRecycled(ViewHolder holder) {
+
+//        if (holder.bitmap != null) {
+//            holder.bitmap.recycle();
+//            holder.bitmap = null;
+
+            // photosCache
+//        }
+        super.onViewRecycled(holder);
     }
 
     public PhotosAdapter(ArrayList<String> camImgUriList) {
@@ -74,22 +87,29 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
                               @Override
                               public void subscribe(ObservableEmitter<Bitmap> e) throws Exception {
 
+                                  displayLruState();
+
                                   String url = camImgUriList.get(position);
 
                                   initCache();
 
                                   Bitmap bitmap = photosCache.get(url);
 
+                                  if (bitmap != null) {
+                                      Log.d("Prateek", "Loaded bitmap from cache: " + url);
+                                  }
+
                                   if (bitmap == null) {
+                                      Log.d("Prateek", "Bitmap not found in cache: " + url);
 
                                       bitmap = BitmapFactory.decodeFile(camImgUriList.get(position));
 
                                       if (bitmap != null) {
                                           photosCache.put(url, bitmap);
+                                          Log.d("Prateek", "Putting bitmap: " + url);
                                       }
                                   }
 
-                                  // bitmap.get
                                   // Null aren't allowed in RxJava 2.0. So need to implement onError, if null is released.
                                   if (bitmap != null) {
                                       e.onNext(bitmap);
@@ -109,9 +129,12 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
                     }
                 });
 
-
         // holder.imgItem.setBackground(ContextCompat.getDrawable(holder.imgItem.getContext(), R.drawable.img_placeholder));
-        ;
+    }
+
+    private void displayLruState() {
+
+
     }
 
     @Override
@@ -139,5 +162,4 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
             imgItem = (ImageView) itemView.findViewById(R.id.item_img);
         }
     }
-
 }

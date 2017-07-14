@@ -7,6 +7,9 @@ import org.junit.Test;
 
 import java.util.Stack;
 
+import io.reactivex.Observable;
+import io.reactivex.functions.Consumer;
+
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -107,5 +110,22 @@ public class ExampleUnitTest {
 
     private int getNextInt() {
         return arr[current++];
+    }
+
+
+    @Test
+    public void rxTest() {
+
+
+        Observable.just(1, 2, 3, 4, 5)
+                .flatMap(value -> Observable.just(value))
+                .subscribe(new Consumer<Integer>() {
+                    @Override
+                    public void accept(Integer integer) throws Exception {
+
+                    }
+                });
+
+
     }
 }

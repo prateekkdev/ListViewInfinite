@@ -44,7 +44,20 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
             return;
         }
 
-        photosCache = new LruCache<>(10);
+        photosCache = new LruCache(10) {
+            @Override
+            protected void entryRemoved(boolean evicted, Object key, Object oldValue, Object newValue) {
+                Bitmap bitmap = ((Bitmap) oldValue);
+                if (bitmap != null && !bitmap.isRecycled()) {
+                    // Recycling key
+                    Log.e("Prateek", "Bitmap, Recycling when removal " + key);
+                    bitmap.recycle();
+                } else {
+                    Log.e("Prateek", "Bitmap, Already recycled " + key);
+                }
+                super.entryRemoved(evicted, key, oldValue, newValue);
+            }
+        };
     }
 
     @Override
@@ -99,7 +112,7 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
                 }
 
                 // Null aren't allowed in RxJava 2.0. So need to implement onError, if null is released.
-                if (img != null) {
+                if (img != null && !img.isRecycled()) {
                     e.onNext(img);
                     // Log.e("Prateek", "Max-Memory mb: " + maxMemory);
                     // Log.e("Prateek", "Free-Memory: " + availableMemory);
@@ -110,7 +123,9 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
                 .subscribe(new Consumer<Bitmap>() {
                     @Override
                     public void accept(Bitmap bitmap) throws Exception {
-                        holder.imgItem.setImageBitmap(bitmap);
+                        if (bitmap != null && !bitmap.isRecycled()) {
+                            holder.imgItem.setImageBitmap(bitmap);
+                        }
                     }
                 });
 

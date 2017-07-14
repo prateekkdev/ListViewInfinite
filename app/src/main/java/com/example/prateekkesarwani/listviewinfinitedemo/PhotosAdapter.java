@@ -33,7 +33,7 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
     // Get max available VM memory, exceeding this amount will throw an
     // OutOfMemory exception. Stored in kilobytes as LruCache takes an
     // int in its constructor.
-    final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
+    final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / (1024 * 1024));
 
     // Use 1/8th of the available memory for this memory cache.
     final int cacheSize = maxMemory / 4;
@@ -50,7 +50,7 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
                 // The cache size will be measured in kilobytes rather than
                 // number of items.
 
-                Log.e("Prateek", "SizeKB: " + bitmap.getByteCount() / 1024 + ", Url: " + key);
+                Log.e("Prateek", "SizeMB: " + bitmap.getByteCount() / (1024 * 1024) + ", Url: " + key);
 
                 return bitmap.getByteCount() / 1024;
             }
@@ -64,7 +64,7 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
 //            holder.bitmap.recycle();
 //            holder.bitmap = null;
 
-            // photosCache
+        // photosCache
 //        }
         super.onViewRecycled(holder);
     }
@@ -96,17 +96,17 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
                                   Bitmap bitmap = photosCache.get(url);
 
                                   if (bitmap != null) {
-                                      Log.d("Prateek", "Loaded bitmap from cache: " + url);
+                                      Log.e("Prateek", "Bitmap, found in cache, url " + url);
                                   }
 
                                   if (bitmap == null) {
-                                      Log.d("Prateek", "Bitmap not found in cache: " + url);
+                                      Log.e("Prateek", "Bitmap, not found in cache, url" + url);
 
                                       bitmap = BitmapFactory.decodeFile(camImgUriList.get(position));
 
-                                      if (bitmap != null) {
+                                      if (bitmap != null && position == 0) {
                                           photosCache.put(url, bitmap);
-                                          Log.d("Prateek", "Putting bitmap: " + url);
+                                          Log.e("Prateek", "Bitmap, putting inside cache, url " + url);
                                       }
                                   }
 
@@ -114,7 +114,7 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
                                   if (bitmap != null) {
                                       e.onNext(bitmap);
 
-                                      Log.e("Prateek", "Max-Memory: " + maxMemory);
+                                      Log.e("Prateek", "Max-Memory mb: " + maxMemory);
                                       // Log.e("Prateek", "Free-Memory: " + availableMemory);
                                   }
 

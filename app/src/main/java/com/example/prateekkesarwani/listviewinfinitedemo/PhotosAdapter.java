@@ -3,6 +3,7 @@ package com.example.prateekkesarwani.listviewinfinitedemo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.support.v7.widget.RecyclerView;
+import android.text.TextUtils;
 import android.util.Log;
 import android.util.LruCache;
 import android.view.LayoutInflater;
@@ -28,7 +29,7 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
 
     private ArrayList<String> camImgUriList;
 
-    private LruCache<String, Bitmap> photosCache;
+    private LruCache<Integer, String> photosCache;
 
     // Get max available VM memory, exceeding this amount will throw an
     // OutOfMemory exception. Stored in kilobytes as LruCache takes an
@@ -44,17 +45,7 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
             return;
         }
 
-        photosCache = new LruCache<String, Bitmap>(cacheSize) {
-            @Override
-            protected int sizeOf(String key, Bitmap bitmap) {
-                // The cache size will be measured in kilobytes rather than
-                // number of items.
-
-                Log.e("Prateek", "SizeMB: " + bitmap.getByteCount() / (1024 * 1024) + ", Url: " + key);
-
-                return bitmap.getByteCount() / 1024;
-            }
-        };
+        photosCache = new LruCache<>(10);
     }
 
     @Override
@@ -84,43 +75,35 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
         holder.txtItem.setText("Value: " + position);
 
         Observable.create(new ObservableOnSubscribe<Bitmap>() {
-                              @Override
-                              public void subscribe(ObservableEmitter<Bitmap> e) throws Exception {
+            @Override
+            public void subscribe(ObservableEmitter<Bitmap> e) throws Exception {
 
-                                  displayLruState();
+                displayLruState();
 
-                                  String url = camImgUriList.get(position);
+                // String url = camImgUriList.get(position);
 
-                                  initCache();
+                initCache();
 
-                                  Bitmap bitmap = photosCache.get(url);
+                String cacheUrl = photosCache.get(position);
 
-                                  if (bitmap != null) {
-                                      Log.e("Prateek", "Bitmap, found in cache, url " + url);
-                                  }
+                if (!TextUtils.isEmpty(cacheUrl)) {
+                    Log.e("Prateek", "Bitmap, found in cache, position " + position);
+                } else {
+                    cacheUrl = camImgUriList.get(position);
+                    photosCache.put(position, cacheUrl);
+                    Log.e("Prateek", "Bitmap, not found in cache, position" + position);
+                }
 
-                                  if (bitmap == null) {
-                                      Log.e("Prateek", "Bitmap, not found in cache, url" + url);
+                Bitmap bitmap = BitmapFactory.decodeFile(camImgUriList.get(position));
 
-                                      bitmap = BitmapFactory.decodeFile(camImgUriList.get(position));
-
-                                      if (bitmap != null && position == 0) {
-                                          photosCache.put(url, bitmap);
-                                          Log.e("Prateek", "Bitmap, putting inside cache, url " + url);
-                                      }
-                                  }
-
-                                  // Null aren't allowed in RxJava 2.0. So need to implement onError, if null is released.
-                                  if (bitmap != null) {
-                                      e.onNext(bitmap);
-
-                                      Log.e("Prateek", "Max-Memory mb: " + maxMemory);
-                                      // Log.e("Prateek", "Free-Memory: " + availableMemory);
-                                  }
-
-                              }
-                          }
-        ).subscribeOn(Schedulers.io())
+                // Null aren't allowed in RxJava 2.0. So need to implement onError, if null is released.
+                if (bitmap != null) {
+                    e.onNext(bitmap);
+                    // Log.e("Prateek", "Max-Memory mb: " + maxMemory);
+                    // Log.e("Prateek", "Free-Memory: " + availableMemory);
+                }
+            }
+        }).subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Consumer<Bitmap>() {
                     @Override

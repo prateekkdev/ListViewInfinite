@@ -3,7 +3,6 @@ package com.example.prateekkesarwani.listviewinfinitedemo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.support.v7.widget.RecyclerView;
-import android.text.TextUtils;
 import android.util.Log;
 import android.util.LruCache;
 import android.view.LayoutInflater;
@@ -29,7 +28,7 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
 
     private ArrayList<String> camImgUriList;
 
-    private LruCache<Integer, String> photosCache;
+    private LruCache<Integer, Bitmap> photosCache;
 
     // Get max available VM memory, exceeding this amount will throw an
     // OutOfMemory exception. Stored in kilobytes as LruCache takes an
@@ -84,21 +83,24 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
 
                 initCache();
 
-                String cacheUrl = photosCache.get(position);
+                Bitmap img = photosCache.get(position);
 
-                if (!TextUtils.isEmpty(cacheUrl)) {
+                if (img != null) {
                     Log.e("Prateek", "Bitmap, found in cache, position " + position);
                 } else {
-                    cacheUrl = camImgUriList.get(position);
-                    photosCache.put(position, cacheUrl);
+                    img = BitmapFactory.decodeFile(camImgUriList.get(position));
+                    // img = camImgUriList.get(position);
+                    if (img == null) {
+                        // Some decoding issue.
+                        return;
+                    }
+                    photosCache.put(position, img);
                     Log.e("Prateek", "Bitmap, not found in cache, position" + position);
                 }
 
-                Bitmap bitmap = BitmapFactory.decodeFile(camImgUriList.get(position));
-
                 // Null aren't allowed in RxJava 2.0. So need to implement onError, if null is released.
-                if (bitmap != null) {
-                    e.onNext(bitmap);
+                if (img != null) {
+                    e.onNext(img);
                     // Log.e("Prateek", "Max-Memory mb: " + maxMemory);
                     // Log.e("Prateek", "Free-Memory: " + availableMemory);
                 }

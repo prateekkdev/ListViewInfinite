@@ -1,10 +1,8 @@
 package com.example.prateekkesarwani.listviewinfinitedemo;
 
-import android.app.Activity;
 import android.databinding.DataBindingUtil;
 import android.os.Bundle;
 import android.os.Environment;
-import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -12,7 +10,7 @@ import android.support.v7.widget.RecyclerView;
 import java.io.File;
 import java.util.ArrayList;
 
-import static android.os.Environment.DIRECTORY_DCIM;
+import static android.os.Environment.DIRECTORY_PICTURES;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -39,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
         */
 
         // DIRECTORY_PICTURE / DIRECTORY_DCIM
-        File camFile = Environment.getExternalStoragePublicDirectory(DIRECTORY_DCIM);
+        File camFile = Environment.getExternalStoragePublicDirectory(DIRECTORY_PICTURES);
 
         File[] files = camFile.listFiles();
 
@@ -50,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
             uriList.add(uri);
         }
 
-        photosAdapter = new PhotosAdapter(uriList);
+        photosAdapter = new PhotosAdapter(uriList, this);
         photosRecyclerView.setAdapter(photosAdapter);
 
 

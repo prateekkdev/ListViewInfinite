@@ -1,5 +1,6 @@
 package com.example.prateekkesarwani.listviewinfinitedemo;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.support.v7.widget.RecyclerView;
@@ -12,6 +13,11 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.squareup.picasso.Picasso;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 
 import io.reactivex.Observable;
@@ -27,7 +33,7 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
 
     private ArrayList<String> camImgUriList;
 
-    private LruCache<Integer, Bitmap> photosCache;
+    private LruCache<String, Bitmap> photosCache;
 
     // Get max available VM memory, exceeding this amount will throw an
     // OutOfMemory exception. Stored in kilobytes as LruCache takes an
@@ -40,24 +46,65 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
 
     PublishSubject<Pair<ViewHolder, Integer>> subject;
 
+    public static long getUsedMemorySize() {
+
+        long freeSize = 0L;
+        long totalSize = 0L;
+        long usedSize = -1L;
+        try {
+            Runtime info = Runtime.getRuntime();
+            freeSize = info.freeMemory();
+            totalSize = info.totalMemory();
+            usedSize = totalSize - freeSize;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return usedSize;
+
+    }
+
+    public static long getTotalMemorySize() {
+        long totalSize = 0L;
+        try {
+            Runtime info = Runtime.getRuntime();
+            totalSize = info.totalMemory();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return totalSize;
+    }
+
     void initCache() {
 
         if (photosCache != null) {
             return;
         }
 
-        photosCache = new LruCache(10) {
+        int totalMemory = (int) getTotalMemorySize();
+        Log.e("Prateek", "Available mem: " + totalMemory);
+        // use 1/8th of the available memory for this memory cache
+        final int cacheSize = totalMemory / 8;
+
+        /**
+         * @param cacheSize for caches that do not override {@link #sizeOf}, this is
+         *                the maximum number of entries in the cache. For all other caches,
+         *                this is the maximum sum of the sizes of the entries in this cache.
+         */
+
+        photosCache = new LruCache<String, Bitmap>(cacheSize) {
+
+
             @Override
-            protected void entryRemoved(boolean evicted, Object key, Object oldValue, Object newValue) {
-                Bitmap bitmap = ((Bitmap) oldValue);
-                if (bitmap != null && !bitmap.isRecycled()) {
-                    // Recycling key
-                    Log.e("Prateek", "Bitmap, Recycling when removal " + key);
-                    bitmap.recycle();
-                } else {
-                    Log.e("Prateek", "Bitmap, Already recycled " + key);
-                }
-                super.entryRemoved(evicted, key, oldValue, newValue);
+            protected int sizeOf(String key, Bitmap bitmap) {
+                Log.e("Prateek", "Getting size of: " + key + ", " + bitmap.getByteCount());
+                return bitmap.getByteCount();
+            }
+
+            @Override
+            protected void entryRemoved(boolean evicted, String key, Bitmap oldBitmap, Bitmap newBitmap) {
+                Log.e("Prateek", "Removing " + key + ", " + oldBitmap.getByteCount());
+                // Log.e("Prateek", "Adding: " + key + ", " + newBitmap.getByteCount());
+                oldBitmap.recycle();
             }
         };
     }
@@ -74,7 +121,79 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
         super.onViewRecycled(holder);
     }
 
-    public PhotosAdapter(ArrayList<String> camImgUriList) {
+    Bitmap getBitmapFromPicasso(String path) {
+        try {
+            return Picasso.with(mContext).load(path).resize(20, 20).get();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    Bitmap getBitmap(String path) {
+
+        Log.e("Prateek", "Getting bitmap: " + path);
+        Bitmap bitmap = null;
+        File f = new File(path);
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        // options.inPreferredConfig = Bitmap.Config.ALPHA_8;
+        try {
+            bitmap = BitmapFactory.decodeStream(new FileInputStream(f), null, options);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        return bitmap;
+    }
+
+    public static Bitmap decodeSampledBitmapFromResource(String path,
+                                                         int reqWidth, int reqHeight) {
+
+        // First decode with inJustDecodeBounds=true to check dimensions
+        final BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+
+        BitmapFactory.decodeFile(path, options);
+
+        // Calculate inSampleSize
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+
+        // Decode bitmap with inSampleSize set
+        options.inJustDecodeBounds = false;
+        return BitmapFactory.decodeFile(path, options);
+    }
+
+    public static int calculateInSampleSize(
+            BitmapFactory.Options options, int reqWidth, int reqHeight) {
+        // Raw height and width of image
+        final int height = options.outHeight;
+        final int width = options.outWidth;
+
+        Log.e("Prateek", "Height: " + height);
+        Log.e("Prateek", "Width: " + width);
+
+
+        int inSampleSize = 1;
+
+        if (height > reqHeight || width > reqWidth) {
+
+            final int halfHeight = height / 2;
+            final int halfWidth = width / 2;
+
+            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
+            // height and width larger than the requested height and width.
+            while ((halfHeight / inSampleSize) >= reqHeight
+                    && (halfWidth / inSampleSize) >= reqWidth) {
+                inSampleSize *= 2;
+            }
+        }
+
+        return inSampleSize;
+    }
+
+    Context mContext;
+
+    public PhotosAdapter(ArrayList<String> camImgUriList, Context context) {
+        this.mContext = context;
         this.camImgUriList = camImgUriList;
 
         initCache();
@@ -85,18 +204,22 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
                 .flatMap(pair -> {
                     int position = pair.second;
 
-                    Bitmap img = photosCache.get(position);
+                    Bitmap img = photosCache.get("" + position);
 
                     if (img != null) {
                         Log.e("Prateek", "Bitmap, found in cache, position " + position);
                     } else {
-                        img = BitmapFactory.decodeFile(camImgUriList.get(position));
+                        img = decodeSampledBitmapFromResource(camImgUriList.get(position), 50, 50);
                         // img = camImgUriList.get(position);
                         if (img == null) {
                             // Some decoding issue.
                             return Observable.just(new Pair(null, null));
                         }
-                        photosCache.put(position, img);
+
+                        Log.e("Prateek", "Size: " + img.getByteCount() / (1024 * 1024));
+
+
+                        photosCache.put(position + "", img);
                         Log.e("Prateek", "Bitmap, not found in cache, position" + position);
                     }
 

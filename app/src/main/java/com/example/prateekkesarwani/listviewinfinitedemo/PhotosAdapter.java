@@ -38,13 +38,30 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
     // Get max available VM memory, exceeding this amount will throw an
     // OutOfMemory exception. Stored in kilobytes as LruCache takes an
     // int in its constructor.
-    final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / (1024 * 1024));
-
-    // Use 1/8th of the available memory for this memory cache.
-    final int cacheSize = maxMemory / 4;
-    private Object pair;
+    private int cacheSize;
 
     PublishSubject<Pair<ViewHolder, Integer>> subject;
+
+    Context mContext;
+
+    public void updateCache() {
+
+        int updatedCacheSize = (int) getTotalMemorySize() / 4;
+
+        Log.e("Prateek", "Current Cache: " + cacheSize);
+        Log.e("Prateek", "New Cache: " + updatedCacheSize);
+
+        if (this.cacheSize >= updatedCacheSize) {
+            return;
+        }
+
+
+        Log.e("Prateek", "Resizing cache: previous: " + this.cacheSize + ", new: " + updatedCacheSize);
+
+        this.cacheSize = updatedCacheSize;
+
+        photosCache.resize(cacheSize);
+    }
 
     public static long getUsedMemorySize() {
 
@@ -82,8 +99,6 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
 
         int totalMemory = (int) getTotalMemorySize();
         Log.e("Prateek", "Available mem: " + totalMemory);
-        // use 1/8th of the available memory for this memory cache
-        final int cacheSize = totalMemory / 8;
 
         /**
          * @param cacheSize for caches that do not override {@link #sizeOf}, this is
@@ -91,8 +106,12 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
          *                this is the maximum sum of the sizes of the entries in this cache.
          */
 
+        /**
+         * Initially total available mem size(for app) is smaller, after that it becomes larger after some time of more usage. Accordingly, we should also increase the
+         */
+        // Need to set some inital size, ex 1 MB. As initially when app size itself is around 2MB, cauche would cause trouble
+        cacheSize = 3 * 1024 * 1024;
         photosCache = new LruCache<String, Bitmap>(cacheSize) {
-
 
             @Override
             protected int sizeOf(String key, Bitmap bitmap) {
@@ -111,19 +130,12 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
 
     @Override
     public void onViewRecycled(ViewHolder holder) {
-
-//        if (holder.bitmap != null) {
-//            holder.bitmap.recycle();
-//            holder.bitmap = null;
-
-        // photosCache
-//        }
         super.onViewRecycled(holder);
     }
 
     Bitmap getBitmapFromPicasso(String path) {
         try {
-            return Picasso.with(mContext).load(path).resize(20, 20).get();
+            return Picasso.with(mContext).load(path).resize(148, 148).get();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -171,7 +183,6 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
         Log.e("Prateek", "Height: " + height);
         Log.e("Prateek", "Width: " + width);
 
-
         int inSampleSize = 1;
 
         if (height > reqHeight || width > reqWidth) {
@@ -190,8 +201,6 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
         return inSampleSize;
     }
 
-    Context mContext;
-
     public PhotosAdapter(ArrayList<String> camImgUriList, Context context) {
         this.mContext = context;
         this.camImgUriList = camImgUriList;
@@ -209,15 +218,19 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
                     if (img != null) {
                         Log.e("Prateek", "Bitmap, found in cache, position " + position);
                     } else {
-                        img = decodeSampledBitmapFromResource(camImgUriList.get(position), 50, 50);
+                        img = decodeSampledBitmapFromResource(camImgUriList.get(position), 148, 148);
                         // img = camImgUriList.get(position);
                         if (img == null) {
                             // Some decoding issue.
                             return Observable.just(new Pair(null, null));
                         }
 
-                        Log.e("Prateek", "Size: " + img.getByteCount() / (1024 * 1024));
-
+                        Log.e("UsefulPrateek", "1. Bitmap Size: " + img.getByteCount() / (1024));
+                        Log.e("UsefulPrateek", "2. Current Cache Size: " + photosCache.size() / (1024));
+                        Log.e("UsefulPrateek", "3. Limit Cache Size: " + photosCache.maxSize() / (1024));
+                        Log.e("UsefulPrateek", "4. Current total mem: " + getTotalMemorySize() / (1024));
+                        Log.e("UsefulPrateek", "5. Used mem size: " + getUsedMemorySize() / (1024));
+                        Log.e("UsefulPrateek", "-------------- ");
 
                         photosCache.put(position + "", img);
                         Log.e("Prateek", "Bitmap, not found in cache, position" + position);
@@ -242,7 +255,16 @@ public class PhotosAdapter extends RecyclerView.Adapter<PhotosAdapter.ViewHolder
                         return;
                     }
 
-                    ((ViewHolder) pair.first).imgItem.setImageBitmap((Bitmap) pair.second);
+                    Bitmap bitmap = (Bitmap) pair.second;
+
+                    if (!bitmap.isRecycled()) {
+
+                        Log.e("Prateek", "Setting bitmap, total mem: " + getTotalMemorySize() / (1024 * 1024) + ", used mem: " + getUsedMemorySize() / (1024 * 1024));
+                        ((ViewHolder) pair.first).imgItem.setImageBitmap((Bitmap) pair.second);
+
+                        // Maybe now cache might need updating, if memory limits are bumped
+                        updateCache();
+                    }
                 });
     }
 
